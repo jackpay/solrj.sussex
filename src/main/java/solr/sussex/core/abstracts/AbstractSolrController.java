@@ -11,8 +11,8 @@ import com.beust.jcommander.ParameterException;
 import org.apache.solr.client.solrj.SolrServer;
 
 import solr.sussex.server.AbstractServerWrapper;
-import solr.sussex.server.SingletonEmbeddedServer;
-import solr.sussex.server.SingletonLocalServer;
+//import solr.sussex.server.EmbeddedServer;
+import solr.sussex.server.LocalServer;
 
 /**
  * Abstract specifying the required basic structure for any implementation of a SolrController.
@@ -36,8 +36,8 @@ public abstract class AbstractSolrController {
 		 * Allows instantiation with default values.
 		 */
 		{
-			put(LOCAL, SingletonLocalServer.class);
-			put(EMBED, SingletonEmbeddedServer.class);
+			put(LOCAL, LocalServer.class);
+			//put(EMBED, EmbeddedServer.class);
 		}
 	};
 	private static final HashMap<String,String[]> Opts = new HashMap<String,String[]>()
@@ -70,16 +70,15 @@ public abstract class AbstractSolrController {
 	
 	// Basic class level variables
 	private static String currReqHandler = requestHandOps.get(DISMAX);
-	private static AbstractServerWrapper server;
 	
 	
 	/**
 	 * Called by the main method of the calling class to start the server.
 	 * @param args String representing the server required.
 	 */
-	public static void startServer(String serv){
+	public static AbstractServerWrapper getServer(String serv){
 		try {
-			server = AbstractServerWrapper.getInstance(servers.get(serv));
+			return AbstractServerWrapper.getInstance(servers.get(serv));
 		} catch (InstantiationException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -87,22 +86,21 @@ public abstract class AbstractSolrController {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		return null;
 	}
 	
 	/**
 	 * Called by the main method of the calling class to set the RequestHandler of the Server.
 	 * @param reqHand
 	 */
-	public static void setRequestHandler(String reqHand){
+	public void setRequestHandler(String reqHand){
 		currReqHandler = requestHandOps.get(reqHand);
 	}
 	
 	/**
 	 * @return The current initialised instance containing the SolrServer.
 	 */
-	public static AbstractServerWrapper serverContainer(){
-		return server;
-	}
+	public abstract AbstractServerWrapper serverContainer();
 	
 	/**
 	 * Used by the main method to initialise the SolrController instance using input arguments
@@ -114,7 +112,7 @@ public abstract class AbstractSolrController {
 	 * Sets the fields considered valid in the schema to the program.
 	 * @param fields
 	 */
-	public abstract void setFields(String[] fields);
+	public abstract void setFields(List<String> fields);
 	
 	/**
 	 * Allows a query to be specified and built and validated.
@@ -128,7 +126,7 @@ public abstract class AbstractSolrController {
 	public abstract void executeQuery();
 
 	/**
-	 * An abstract specifying the basic input parameters of any new SolrController instance
+	 * An class specifying the basic input parameters of any new SolrController instance
 	 * @author jp242
 	 *
 	 */
@@ -144,17 +142,26 @@ public abstract class AbstractSolrController {
 
 		@Parameter
 		(names = {REQ_OP, "--request"}, 
-		description = "RequestHandler to use. Options include: ['MLT']. Default: DISMAX",
-		required = true,
-		validateWith = ValidStringOption.class)
+		description = "RequestHandler to use. Options include: ['MLT','DISMAX']. Default: 'DISMAX'")
+		//validateWith = ValidStringOption.class)
 		private String reqH = DISMAX;
 		
 		@Parameter
 		(names = {SERV_OP, "--server"},
 		description = "Server type. Options include: ['LOCAL' , 'EMBED']",
-		required = true,
-		validateWith = ValidStringOption.class)
+		required = true)
+		//validateWith = ValidStringOption.class)
 		private String serT = LOCAL;
+		
+		@Parameter
+		(names = {"-c","--config"},
+		description = "Location of Solr config file.")
+		private String config = null;
+		
+		@Parameter
+		(names = {"-x", "--schema"},
+		description = "Location of the Solr schema.xml")
+		private String schema = null;
 		
 		@Parameter
 		(names= {"-f", "--fields"},
@@ -178,25 +185,33 @@ public abstract class AbstractSolrController {
 			return (ArrayList<String>) fields;
 		}
 		
+		public String getConfLoc(){
+			return config;
+		}
+		
+		public String getSchemaLoc(){
+			return schema;
+		}
+		
 		/**
 		 * Class for validating the input strings specified in the input parameters.
 		 * @author jp242
 		 *
 		 */
 		public class ValidStringOption implements IParameterValidator{
-
-			public void validate(String option, String value)
+			
+			public void validate(String name, String value)
 					throws ParameterException {
 				boolean valid = false;
-				if(Opts.containsKey(option)){
+				if(Opts.containsKey(name)){
 					int i = 0;
-					while(!valid && i < Opts.get(option).length){
-						valid = (Opts.get(option)[i].equals(value));
+					while(!valid && i < Opts.get(name).length){
+						valid = (Opts.get(name)[i].equals(value));
 						i++;
 					}
 					if(!valid){
-						StringBuilder st = new StringBuilder("Parameter " + option + " must be one of options: ");
-						throw new ParameterException(buildMessage(st, option));
+						StringBuilder st = new StringBuilder("Parameter " + name + " must be one of options: ");
+						throw new ParameterException(buildMessage(st, name));
 					}
 				}
 				else{
