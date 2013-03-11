@@ -1,7 +1,7 @@
 package solr.sussex.server;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
+//import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,7 +29,7 @@ public abstract class AbstractServerWrapper {
 	@SuppressWarnings("unchecked")
 	public static <E extends AbstractServerWrapper> E getInstance(Class<E> cl) throws InstantiationException, IllegalAccessException{
 		E newInstance = null;
-		newInstance = (E) SingletonServerFactory.getInstance().createServer(cl);
+		newInstance = (E) SingletonServerFactory.getServer(cl);
 		return newInstance;
 	}
 	

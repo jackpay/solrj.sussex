@@ -10,7 +10,7 @@ import solr.sussex.server.AbstractServerWrapper;
 
 public class BasicLocalServer extends AbstractSolrController{
 	
-	private AbstractServerWrapper server;
+	private static AbstractServerWrapper server;
 	
 	public static void main(String[] args) {
 		System.err.println("here");

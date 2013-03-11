@@ -3,8 +3,6 @@ package solr.sussex.server;
 public class SingletonServerFactory {
 	
 	private static AbstractServerWrapper server;
-	private static SingletonServerFactory factory;
-	
 	
 	private SingletonServerFactory(){}
 	
@@ -12,7 +10,8 @@ public class SingletonServerFactory {
 		return FactoryHolder.INSTANCE;
 	}
 	
-	public <E extends AbstractServerWrapper> AbstractServerWrapper createServer(Class<E> cl){
+	public static <E extends AbstractServerWrapper> AbstractServerWrapper getServer(Class<E> cl){
+		getInstance();
 		if(server == null){
 			try {
 				server = cl.newInstance();
@@ -24,10 +23,6 @@ public class SingletonServerFactory {
 				e.printStackTrace();
 			}
 		}
-		return server;
-	}
-	
-	public AbstractServerWrapper getServer(){
 		return server;
 	}
 	

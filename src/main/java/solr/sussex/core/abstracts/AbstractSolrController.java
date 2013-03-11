@@ -8,7 +8,7 @@ import com.beust.jcommander.IParameterValidator;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 
-import org.apache.solr.client.solrj.SolrServer;
+//import org.apache.solr.client.solrj.SolrServer;
 
 import solr.sussex.server.AbstractServerWrapper;
 //import solr.sussex.server.EmbeddedServer;
