@@ -1,8 +1,11 @@
 package solr.sussex.core.abstracts;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+
+import basic.local.QuerySolr;
 
 import com.beust.jcommander.IParameterValidator;
 import com.beust.jcommander.Parameter;
@@ -10,6 +13,7 @@ import com.beust.jcommander.ParameterException;
 
 //import org.apache.solr.client.solrj.SolrServer;
 
+import solr.sussex.core.interfaces.IQuery;
 import solr.sussex.server.AbstractServerWrapper;
 //import solr.sussex.server.EmbeddedServer;
 import solr.sussex.server.LocalServer;
@@ -26,7 +30,8 @@ public abstract class AbstractSolrController {
 	private static final String SERV_OP = "-s";
 	private static final String LOCAL = "LOCAL";
 	private static final String EMBED = "EMBED";
-	private static final String[] serverOpts = {LOCAL , EMBED};
+	private static final String REMOTE = "REMOTE";
+	private static final String[] serverOpts = {LOCAL , EMBED, REMOTE};
 	private static final HashMap<String, Class<? extends AbstractServerWrapper>> servers = 
 			new HashMap<String, Class<? extends AbstractServerWrapper>>()
 	{
@@ -68,6 +73,23 @@ public abstract class AbstractSolrController {
 		}
 	};
 	
+	// Set request type i.e. add, query, delete etc...
+	private static final String REQ_TYPE = "-q";
+	private static final String QUERY = "QUERY";
+	private static final String ADD = "ADD";
+	private static final String DELETE = "DELETE";
+	private static final String DELETE_ALL = "DELETE_ALL";
+	private static final HashMap<String, Class<? extends IQuery>> queryTypes =
+			new HashMap<String, Class<? extends IQuery>>()
+	{
+		private static final long serialVersionUID = 2207549085875431383L;
+
+		{
+			put(QUERY, QuerySolr.class);
+		}
+		
+	};
+	
 	// Basic class level variables
 	private static String currReqHandler = requestHandOps.get(DISMAX);
 	
@@ -90,17 +112,31 @@ public abstract class AbstractSolrController {
 	}
 	
 	/**
+	 * Called by the main method of the calling class to start the server. Allows inclusion of server address.
+	 * @param serv Server type
+	 * @param address Server address
+	 * @return AbstractServerWrapper containing SolrServer
+	 */
+	public static AbstractServerWrapper getServer(String serv, String address){
+		try {
+			return AbstractServerWrapper.getInstance(servers.get(serv), address);
+		} catch (InstantiationException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	/**
 	 * Called by the main method of the calling class to set the RequestHandler of the Server.
 	 * @param reqHand
 	 */
 	public void setRequestHandler(String reqHand){
 		currReqHandler = requestHandOps.get(reqHand);
 	}
-	
-	/**
-	 * @return The current initialised instance containing the SolrServer.
-	 */
-	public abstract AbstractServerWrapper serverContainer();
 	
 	/**
 	 * Used by the main method to initialise the SolrController instance using input arguments
@@ -118,7 +154,12 @@ public abstract class AbstractSolrController {
 	 * Allows a query to be specified and built and validated.
 	 * @param query
 	 */
-	public abstract void buildQuery(String[] query);
+	public abstract void buildQuery();
+	
+	/**
+	 * Allows a raw query String to be parsed and correctly handled by the server.
+	 */
+	public abstract void parseQuery(String query);
 	
 	/**
 	 * Executes a built query.
@@ -130,44 +171,50 @@ public abstract class AbstractSolrController {
 	 * @author jp242
 	 *
 	 */
-	public class SolrJCommander {
+	public static class SolrJCommander {
 		
 		@Parameter
 	    private List<String> parameters = new ArrayList<String>();
+
+		@Parameter
+		(names = {REQ_OP, "--request"}, 
+		description = "RequestHandler to use. Options include: ['MLT','DISMAX']. Default: 'DISMAX'",
+		validateWith = ValidStringOption.class)
+		private String reqH = DISMAX;
+		
+		@Parameter
+		(names = {SERV_OP, "--server"},
+		description = "Server type. Options include: ['LOCAL' , 'EMBED']. Default: 'LOCAL'",
+		validateWith = ValidStringOption.class)
+		private String serT = LOCAL;
+		
+		@Parameter
+		(names = {REQ_TYPE, "--queryType"},
+		description = "The query type of the server access request. Options include: ['QUERY', 'ADD', 'DELETE', 'DELETE_ALL']",
+		validateWith = ValidStringOption.class,
+		required = true)
+		private String queryType = null;
+		
+		@Parameter
+		(names = {"-i","--docLocation"},
+		description = "Location of the document(s) wishing to be indexed.",
+		validateWith = ValidFilePath.class)
+		private String docPath;
 		
 		@Parameter
 		(names = {"-a", "--address"},
 		description = "Server address if not using a local or embedded server.")
 		private String servAdd = null;
-
-		@Parameter
-		(names = {REQ_OP, "--request"}, 
-		description = "RequestHandler to use. Options include: ['MLT','DISMAX']. Default: 'DISMAX'")
-		//validateWith = ValidStringOption.class)
-		private String reqH = DISMAX;
-		
-		@Parameter
-		(names = {SERV_OP, "--server"},
-		description = "Server type. Options include: ['LOCAL' , 'EMBED']",
-		required = true)
-		//validateWith = ValidStringOption.class)
-		private String serT = LOCAL;
-		
-		@Parameter
-		(names = {"-c","--config"},
-		description = "Location of Solr config file.")
-		private String config = null;
-		
-		@Parameter
-		(names = {"-x", "--schema"},
-		description = "Location of the Solr schema.xml")
-		private String schema = null;
 		
 		@Parameter
 		(names= {"-f", "--fields"},
 		description = "Valid fields in Solr schema.xml. Call once for each field, e.g. -f arg1 -f arg2",
 		required = true)
 		private List<String> fields = new ArrayList<String>();
+		
+		public String getQueryType(){
+			return queryType;
+		}
 		
 		public String getServerType(){
 			return serT;
@@ -184,21 +231,15 @@ public abstract class AbstractSolrController {
 		public ArrayList<String> getFields(){
 			return (ArrayList<String>) fields;
 		}
-		
-		public String getConfLoc(){
-			return config;
-		}
-		
-		public String getSchemaLoc(){
-			return schema;
-		}
-		
+
 		/**
 		 * Class for validating the input strings specified in the input parameters.
 		 * @author jp242
 		 *
 		 */
-		public class ValidStringOption implements IParameterValidator{
+		public static class ValidStringOption implements IParameterValidator{
+			
+			public ValidStringOption(){}
 			
 			public void validate(String name, String value)
 					throws ParameterException {
@@ -228,6 +269,18 @@ public abstract class AbstractSolrController {
 				}
 				st.append(".");
 				return st.toString();
+			}
+		}
+		
+		public static class ValidFilePath implements IParameterValidator{
+			
+			public ValidFilePath(){};
+
+			public void validate(String name, String value)
+					throws ParameterException {
+				if(! new File(value).exists()){
+					throw new ParameterException("The file path given as document(s) location does not exist.");
+				}
 			}
 		}
 	}

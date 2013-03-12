@@ -18,6 +18,19 @@ import solr.sussex.core.abstracts.AbstractSussexSolrDocument;
  */
 public abstract class AbstractServerWrapper {
 	
+	private SolrServer server;
+	private static String address;
+	
+	public AbstractServerWrapper(){
+		this.address = "http://localhost:8080/solr/";
+	}
+	public AbstractServerWrapper( String address ){
+		this.address = address;
+	}
+	
+	public static String getAddress(){
+		return address;
+	}
 	
 	/**
 	 * Gets the current instance/new instance of the inheriting class.
@@ -28,8 +41,13 @@ public abstract class AbstractServerWrapper {
 	 */
 	@SuppressWarnings("unchecked")
 	public static <E extends AbstractServerWrapper> E getInstance(Class<E> cl) throws InstantiationException, IllegalAccessException{
-		E newInstance = null;
-		newInstance = (E) SingletonServerFactory.getServer(cl);
+		E newInstance = (E) SingletonServerFactory.getServer(cl);
+		return newInstance;
+	}
+	
+	@SuppressWarnings("unchecked")
+	public static <E extends AbstractServerWrapper> E getInstance(Class<E> cl, String address) throws InstantiationException, IllegalAccessException{
+		E newInstance = (E) SingletonServerFactory.getServer(cl, address);
 		return newInstance;
 	}
 	
